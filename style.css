@@ -150,6 +150,20 @@ h2 { font-size: 1.2rem; margin: 2em 0 .6em; }
 .full .sc { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
 .full li.top .nm { font-weight: 700; }
 
+.analysis { margin-top: 2.4em; padding-top: 1em; border-top: 2px solid var(--line); }
+.analysis h3 { font-size: 1.02rem; margin: 1.8em 0 .5em; }
+.analysis p { margin: .5em 0; }
+.watch { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.watch li { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-size: .94rem; }
+.watch b { display: block; }
+.jobs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.jobs li { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+.jobs b { display: block; }
+.jobs small { color: var(--muted); font-size: .8rem; }
+.path { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.path li { background: var(--surface); border: 1px solid var(--line); border-left: 5px solid var(--accent); border-radius: 10px; padding: 12px 16px; }
+.analysis .validity { margin: .8em 0; }
+
 @media print {
   body { background: #fff; color: #000; }
   .noprint, .actions { display: none !important; }

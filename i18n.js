@@ -79,5 +79,100 @@ window.GALLUP_I18N = {
       consBad: function (p) { return 'Қайталанған жұптарға жауаптар сәйкес келмеді (' + p + '%) — нәтиже сенімсіз.'; },
       consWarn: function (p) { return 'Қайталанған жұптардың үйлесімділігі төмен (' + p + '%).'; }
     }
+  },
+  en: {
+    docTitle: 'Strengths test — prototype',
+    eyebrow: 'Prototype · 34 talents',
+    title: 'Strengths test',
+    lead: 'Find out which of your talents stand out most. The test consists of pairs of statements: choose which one describes you more accurately.',
+    r1H: '<b>A pair of statements.</b> Mark which of the two is closer to you and by how much. There are no right answers.',
+    r2H: '<b>20 seconds per pair.</b> Answer with your first impression. If time runs out, the pair counts as skipped.',
+    r3H: '<b>No going back.</b> This way the result reflects your first reactions rather than second-guessing.',
+    r4H: '<b>About 18 minutes.</b> 51 pairs plus 6 control repeats to check consistency. Sit somewhere you will not be disturbed.',
+    start: 'Start the test', resume: 'Continue saved test', last: 'Show last result',
+    fine1: 'This is an independent educational prototype in the format of a strengths test. It is not the official Gallup® / CliftonStrengths® assessment and does not replace it: it has 51 questions rather than 177, so the result is approximate. Data is stored only in your browser.',
+    prompt: 'Which statement describes you more accurately?',
+    s_2: 'Strongly A', s_1: 'Rather A', s0: 'Not sure', s1: 'Rather B', s2: 'Strongly B',
+    hint: 'Keys 1–5 work too. There is no going back.',
+    resEyebrow: 'Result', resTitle: 'Your strengths',
+    top5: 'Top 5 talents', domains: 'Domains', all34: 'All 34 talents',
+    allNote: 'The longer the bar, the stronger the talent shows in your answers. Differences within one “step” are small, so rely mainly on the top five.',
+    print: 'Print / PDF', copy: 'Copy summary', retake: 'Retake',
+    fine2: 'Independent educational prototype. Not the official Gallup® / CliftonStrengths® assessment. The result is approximate.',
+    tie: 'The fifth and sixth talents scored the same, so treat both as strong in your profile.',
+    vOk: 'The result looks reliable',
+    vWarn: 'Interpret the result with caution',
+    vBad: 'The result is unreliable; we recommend retaking the test',
+    vLine: function (a, t, c, m) { return 'Answered: ' + a + ' of ' + t + ' · consistency of repeated pairs: ' + c + ' · median response time: ' + m + ' s'; },
+    pair: function (n, total) { return 'Pair ' + n + ' of ' + total; },
+    tipPrefix: 'How to use it: ',
+    confirm: 'Start over? The current result will be deleted.',
+    copied: 'Copied to clipboard.', copyFail: 'Could not copy; please select the text manually.',
+    summaryHead: 'My strengths (test prototype):',
+    issues: {
+      skipBad: function (p) { return 'Too many skipped pairs (time ran out): ' + p + '%.'; },
+      skipWarn: function (p) { return 'A noticeable number of pairs were skipped: ' + p + '%.'; },
+      fastBad: function () { return 'More than half of the answers were given in under 1.2 s, so the statements were probably not read.'; },
+      fastWarn: function () { return 'Many answers were very fast; you may have answered without thinking.'; },
+      neutralWarn: function () { return 'More than half of the answers were “not sure”, which flattens the differences between talents.'; },
+      sideWarn: function () { return 'Answers lean strongly to one side of the screen, which lowers accuracy.'; },
+      consBad: function (p) { return 'Answers to repeated pairs did not match (' + p + '%), so the result is unreliable.'; },
+      consWarn: function (p) { return 'Consistency of repeated pairs is low (' + p + '%).'; }
+    }
   }
 };
+
+/* Тексты раздела «Анализ» — добавляются ко всем трём языкам */
+(function (I) {
+  Object.assign(I.ru, {
+    anTitle: 'Анализ вашего профиля',
+    anPortrait: 'Общий портрет',
+    anIntro: function (d, names) { return 'Ваша ведущая область — «' + d + '». Самые выраженные таланты: ' + names + '.'; },
+    anSecond: function (d, s) { return 'Следом идёт область «' + d + '»: она добавляет вашему профилю ' + s + '.'; },
+    anWatchTitle: 'На что обратить внимание',
+    anWatchLead: 'Сильные стороны, доведённые до крайности, могут подводить. В вашей пятёрке стоит помнить следующее:',
+    anBalanceTitle: 'Баланс областей',
+    anWeak: function (d, g) { return 'Наименее выражена область «' + d + '». Это не недостаток, а зона роста: ' + g; },
+    anJobsTitle: 'Подходящие профессии',
+    anJobsLead: 'Подобраны по вашим десяти самым выраженным талантам; чем выше в списке, тем больше совпадений.',
+    anVia: 'благодаря: ',
+    anPathTitle: 'Возможный карьерный путь',
+    anPathLead: function (d) { return 'Ориентир для вашей ведущей области «' + d + '»:'; },
+    anPrelim: 'Из-за замечаний к достоверности (см. выше) анализ предварительный: лучше пройти тест ещё раз.',
+    anNote: 'Анализ ориентировочный: он построен на ответах в коротком тесте и не заменяет консультацию специалиста по профориентации. Выбор профессии определяют не только таланты, но и интересы, ценности, образование и возможности.'
+  });
+  Object.assign(I.kz, {
+    anTitle: 'Профиліңіздің талдауы',
+    anPortrait: 'Жалпы портрет',
+    anIntro: function (d, names) { return 'Сіздің жетекші саласыңыз — «' + d + '». Ең айқын таланттар: ' + names + '.'; },
+    anSecond: function (d, s) { return 'Одан кейін «' + d + '» саласы келеді: ол профиліңізге ' + s + ' қосады.'; },
+    anWatchTitle: 'Неге назар аудару керек',
+    anWatchLead: 'Шектен шыққан күшті жақтар сәтсіздікке ұшыратуы мүмкін. Бестігіңізде мыналарды ұмытпаңыз:',
+    anBalanceTitle: 'Салалар балансы',
+    anWeak: function (d, g) { return 'Ең әлсіз білінген сала — «' + d + '». Бұл кемшілік емес, даму аймағы: ' + g; },
+    anJobsTitle: 'Сәйкес мамандықтар',
+    anJobsLead: 'Ең айқын он талантыңыз бойынша таңдалды; тізімде жоғары тұрған сайын сәйкестік көп.',
+    anVia: 'себебі: ',
+    anPathTitle: 'Мүмкін мансап жолы',
+    anPathLead: function (d) { return 'Жетекші саланыз «' + d + '» үшін бағдар:'; },
+    anPrelim: 'Сенімділікке қатысты ескертулерге байланысты (жоғарыны қараңыз) талдау алдын ала: тестті қайта тапсырған дұрыс.',
+    anNote: 'Талдау шамамен ғана: ол қысқа тесттегі жауаптарға негізделген және кәсіптік бағдар маманының кеңесін алмастырмайды. Мамандық таңдауды таланттар ғана емес, қызығушылық, құндылықтар, білім және мүмкіндіктер де анықтайды.'
+  });
+  Object.assign(I.en, {
+    anTitle: 'Analysis of your profile',
+    anPortrait: 'Overall portrait',
+    anIntro: function (d, names) { return 'Your leading domain is “' + d + '”. Your most pronounced talents are: ' + names + '.'; },
+    anSecond: function (d, s) { return 'Next comes “' + d + '”, which adds ' + s + ' to your profile.'; },
+    anWatchTitle: 'What to watch for',
+    anWatchLead: 'Strengths taken to the extreme can let you down. In your top five, keep in mind:',
+    anBalanceTitle: 'Balance of domains',
+    anWeak: function (d, g) { return 'The least pronounced domain is “' + d + '”. This is not a flaw but a growth area: ' + g; },
+    anJobsTitle: 'Suitable professions',
+    anJobsLead: 'Chosen from your ten strongest talents; the higher in the list, the more matches.',
+    anVia: 'because of: ',
+    anPathTitle: 'A possible career path',
+    anPathLead: function (d) { return 'A guide for your leading domain, “' + d + '”:'; },
+    anPrelim: 'Because of the reliability warnings above, this analysis is preliminary; it is better to retake the test.',
+    anNote: 'This analysis is approximate: it is based on answers to a short test and does not replace advice from a career counsellor. A career choice depends not only on talents but also on interests, values, education and opportunities.'
+  });
+})(window.GALLUP_I18N);
