@@ -1,9 +1,9 @@
 /* Логика теста без привязки к интерфейсу: построение набора пар, подсчёт, проверка достоверности.
    Тест в два этапа: основная часть (фиксированный сбалансированный набор) и уточнение (адаптивные пары, см. adaptive.js). */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./adaptive.js'));
-  else root.GallupEngine = factory(root.GallupAdaptive);
-})(this, function (Adaptive) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./adaptive.js'), require('./axes.js'));
+  else root.GallupEngine = factory(root.GallupAdaptive, root.GallupAxes);
+})(this, function (Adaptive, Axes) {
   'use strict';
 
   var SECONDS = 20;            // время на одну пару
@@ -12,6 +12,7 @@
   var STAGE2 = 40;             // число адаптивных пар на втором этапе
   var CONTROLS = 6;            // контрольные повторы (зеркальные) для проверки согласованности
   var FAST_MS = 1200;          // ответ быстрее — считаем «не читал»
+  var OFF_AXIS_WEIGHT = 0.5;   // во сколько раз «неестественная» пара (без общей оси) менее желанна при подборе уточнения
 
   function shuffle(arr, rng) {
     for (var i = arr.length - 1; i > 0; i--) {
@@ -35,14 +36,52 @@
     return pairs;
   }
 
-  // rounds и controls можно задать для экспериментов (симуляция); по умолчанию — рабочая конфигурация теста
+  /* Одно паросочетание: каждое качество в ровно одной паре, пары — только из allowed (множество ключей «i|j»),
+     ни одна пара не повторяет уже использованные. Если подходящего нет, недостающие пары добираются из любых. */
+  function matching(n, allowed, used, rng) {
+    function attempt(restrict) {
+      var order = shuffle(Array.apply(null, Array(n)).map(function (x, i) { return i; }), rng), taken = {}, m = [];
+      for (var oi = 0; oi < order.length; oi++) {
+        var a = order[oi];
+        if (taken[a]) continue;
+        taken[a] = true;
+        var cand = [];
+        for (var b = 0; b < n; b++) {
+          var k = Axes.key(a, b);
+          if (!taken[b] && !used[k] && (!restrict || allowed[k])) cand.push(b);
+        }
+        if (!cand.length) return restrict ? null : m;   // без ограничения такого почти не бывает
+        var pick = cand[Math.floor(rng() * cand.length)];
+        taken[pick] = true; m.push([a, pick]);
+      }
+      return m;
+    }
+    for (var t = 0; t < 400; t++) { var r = attempt(true); if (r) return r; }
+    return attempt(false) || [];
+  }
+
+  /* Основная часть строится из «естественных» пар (у качеств есть общая ось, см. axes.js),
+     при этом каждое качество получает одинаковое число сравнений. */
+  function naturalMatchings(themes, rng, count) {
+    var allowed = Axes.pairSets(themes).natural, used = {}, out = [];
+    for (var j = 0; j < count; j++) {
+      var m = matching(themes.length, allowed, used, rng);
+      m.forEach(function (p) { used[Axes.key(p[0], p[1])] = 1; });
+      out.push(m);
+    }
+    return out;
+  }
+
+  // rounds и controls можно задать для экспериментов (симуляция); без rounds — рабочая конфигурация теста
   function buildItems(themes, rng, rounds, controls) {
     rng = rng || Math.random;
-    rounds = rounds || ROUNDS;
     controls = controls === undefined ? CONTROLS : controls;
+    var matchings = rounds
+      ? rounds.map(function (k) { return roundRobin(themes.length, k); })
+      : naturalMatchings(themes, rng, ROUNDS.length);
     var items = [];
-    rounds.forEach(function (k, j) {
-      roundRobin(themes.length, k).forEach(function (p) {
+    matchings.forEach(function (pairs, j) {
+      pairs.forEach(function (p) {
         var flip = rng() < 0.5;
         var a = themes[p[0]].id, b = themes[p[1]].id;
         items.push({ L: { t: flip ? b : a, s: j }, R: { t: flip ? a : b, s: j } });
@@ -99,7 +138,9 @@
       last = [a, b];
     });
     var est = Adaptive.fit(themes.length, observations(items, answers, themes));
-    var p = Adaptive.pickPair(est, used, last) || Adaptive.pickPair(est, used, null);
+    var nat = Axes.pairSets(themes).natural;
+    function w(i, j) { return nat[Axes.key(i, j)] ? 1 : OFF_AXIS_WEIGHT; }
+    var p = Adaptive.pickPair(est, used, last, w) || Adaptive.pickPair(est, used, null, w);
     if (!p) return null;
     function pickStatement(t, n) {
       var best = [], min = Infinity;

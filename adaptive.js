@@ -69,8 +69,9 @@
   }
 
   /* Выбор следующей пары: максимум «неопределённости порядка» × важность места.
-     used — множество уже показанных пар вида "i|j" (i<j); excludeTheme — качество, которого нужно избегать подряд. */
-  function pickPair(est, used, lastPair) {
+     used — множество уже показанных пар вида "i|j" (i<j); lastPair — прошлая пара (качества не повторяем подряд);
+     weightFn(i, j) — необязательный множитель «естественности» пары. */
+  function pickPair(est, used, lastPair, weightFn) {
     var n = est.theta.length, rk = ranks(est.theta), best = null, bestScore = -1;
     for (var i = 0; i < n; i++) {
       for (var j = i + 1; j < n; j++) {
@@ -79,7 +80,7 @@
         var s = Math.sqrt(est.sd[i] * est.sd[i] + est.sd[j] * est.sd[j]);
         var p = normCdf((est.theta[i] - est.theta[j]) / s);
         var u = p * (1 - p);
-        var sc = u * Math.sqrt(zoneWeight(rk[i]) * zoneWeight(rk[j]));
+        var sc = u * Math.sqrt(zoneWeight(rk[i]) * zoneWeight(rk[j])) * (weightFn ? weightFn(i, j) : 1);
         if (sc > bestScore) { bestScore = sc; best = [i, j]; }
       }
     }
