@@ -1,12 +1,15 @@
-/* Логика теста без привязки к интерфейсу: построение набора пар, подсчёт, проверка достоверности. */
+/* Логика теста без привязки к интерфейсу: построение набора пар, подсчёт, проверка достоверности.
+   Тест в два этапа: основная часть (фиксированный сбалансированный набор) и уточнение (адаптивные пары, см. adaptive.js). */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.GallupEngine = factory();
-})(this, function () {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./adaptive.js'));
+  else root.GallupEngine = factory(root.GallupAdaptive);
+})(this, function (Adaptive) {
   'use strict';
 
   var SECONDS = 20;            // время на одну пару
-  var ROUNDS = [2, 13, 24];    // какие туры «каждый с каждым» (из 33) используем; каждый тур = 17 пар
+  var ROUNDS = [2, 13, 24];    // туры «каждый с каждым» (из 33) основной части; каждый тур = 17 пар,
+                               // в туре j у каждого качества используется утверждение номер j (остальные берёт уточнение)
+  var STAGE2 = 40;             // число адаптивных пар на втором этапе
   var CONTROLS = 6;            // контрольные повторы (зеркальные) для проверки согласованности
   var FAST_MS = 1200;          // ответ быстрее — считаем «не читал»
 
@@ -22,8 +25,8 @@
     return a.L.t === b.L.t || a.L.t === b.R.t || a.R.t === b.L.t || a.R.t === b.R.t;
   }
 
-  /* Круговой турнир: для чётного n даёт n-1 туров, в каждом тур все таланты участвуют ровно в одной паре,
-     а любая пара талантов встречается ровно в одном туре. Значит каждый талант получает одинаковое число сравнений. */
+  /* Круговой турнир: для чётного n даёт n-1 туров, в каждом тур все качества участвуют ровно в одной паре,
+     а любая пара качеств встречается ровно в одном туре. Значит каждое качество получает одинаковое число сравнений. */
   function roundRobin(n, k) {
     var m = n - 1, pairs = [[0, k + 1]];
     for (var i = 1; i <= (m - 1) / 2; i++) {
@@ -32,10 +35,13 @@
     return pairs;
   }
 
-  function buildItems(themes, rng) {
+  // rounds и controls можно задать для экспериментов (симуляция); по умолчанию — рабочая конфигурация теста
+  function buildItems(themes, rng, rounds, controls) {
     rng = rng || Math.random;
+    rounds = rounds || ROUNDS;
+    controls = controls === undefined ? CONTROLS : controls;
     var items = [];
-    ROUNDS.forEach(function (k, j) {
+    rounds.forEach(function (k, j) {
       roundRobin(themes.length, k).forEach(function (p) {
         var flip = rng() < 0.5;
         var a = themes[p[0]].id, b = themes[p[1]].id;
@@ -43,7 +49,7 @@
       });
     });
     shuffle(items, rng);
-    // не ставим подряд пары с одним и тем же талантом
+    // не ставим подряд пары с одним и тем же качеством
     for (var i = 1; i < items.length; i++) {
       if (!sharesTheme(items[i], items[i - 1])) continue;
       for (var j2 = i + 1; j2 < items.length; j2++) {
@@ -57,13 +63,66 @@
 
     // контрольные повторы: зеркальная копия более ранней пары, вставленная заметно позже
     var withControls = items.slice();
-    for (var c = 0; c < CONTROLS; c++) {
+    for (var c = 0; c < controls; c++) {
       var src = items[2 + c * 7];
       var copy = { id: 'c' + c, control: true, of: src.id, L: src.R, R: src.L };
       var at = Math.min(withControls.length, withControls.indexOf(src) + 14 + Math.floor(rng() * 6));
       withControls.splice(at, 0, copy);
     }
     return withControls;
+  }
+
+  /* Наблюдения для оценки: только оценённые пары (не контрольные, не пропущенные). */
+  function observations(items, answers, themes) {
+    var idx = {}; themes.forEach(function (t, i) { idx[t.id] = i; });
+    var obs = [];
+    items.forEach(function (it, i) {
+      var a = answers[i];
+      if (it.control || !a || a.v === null) return;
+      obs.push({ l: idx[it.L.t], r: idx[it.R.t], v: a.v });
+    });
+    return obs;
+  }
+
+  /* Следующая пара уточнения: выбираем качества из «серой зоны» рейтинга, которые ещё не сталкивали,
+     а утверждения берём наименее показанные из имеющихся у качества. */
+  function nextAdaptiveItem(themes, items, answers, rng) {
+    rng = rng || Math.random;
+    var idx = {}; themes.forEach(function (t, i) { idx[t.id] = i; });
+    var used = {}, usage = {}, last = null;
+    items.forEach(function (it) {
+      if (it.control) return;
+      var a = idx[it.L.t], b = idx[it.R.t];
+      used[Math.min(a, b) + '|' + Math.max(a, b)] = 1;
+      usage[it.L.t + '#' + it.L.s] = (usage[it.L.t + '#' + it.L.s] || 0) + 1;
+      usage[it.R.t + '#' + it.R.s] = (usage[it.R.t + '#' + it.R.s] || 0) + 1;
+      last = [a, b];
+    });
+    var est = Adaptive.fit(themes.length, observations(items, answers, themes));
+    var p = Adaptive.pickPair(est, used, last) || Adaptive.pickPair(est, used, null);
+    if (!p) return null;
+    function pickStatement(t, n) {
+      var best = [], min = Infinity;
+      for (var s = 0; s < n; s++) {
+        var u = usage[t + '#' + s] || 0;
+        if (u < min) { min = u; best = [s]; } else if (u === min) best.push(s);
+      }
+      return best[Math.floor(rng() * best.length)];
+    }
+    var a = themes[p[0]], b = themes[p[1]];
+    var sa = pickStatement(a.id, a.st.length), sb = pickStatement(b.id, b.st.length);
+    var flip = rng() < 0.5;
+    var A = { t: a.id, s: sa }, B = { t: b.id, s: sb };
+    return { id: 'a' + items.length, stage: 2, L: flip ? B : A, R: flip ? A : B };
+  }
+
+  function pearson(a, b) {
+    var n = a.length, ma = 0, mb = 0, i;
+    for (i = 0; i < n; i++) { ma += a[i]; mb += b[i]; }
+    ma /= n; mb /= n;
+    var sab = 0, saa = 0, sbb = 0;
+    for (i = 0; i < n; i++) { sab += (a[i] - ma) * (b[i] - mb); saa += (a[i] - ma) * (a[i] - ma); sbb += (b[i] - mb) * (b[i] - mb); }
+    return saa && sbb ? sab / Math.sqrt(saa * sbb) : null;
   }
 
   /* answers[i] = { v: -2..2 | null, rt: мс }. -2/-1 — выбрано левое, 1/2 — правое, 0 — «не знаю», null — время вышло. */
@@ -80,7 +139,7 @@
         var first = firstValue[it.of];
         if (first !== undefined && first !== null && a.v !== null) {
           compared++;
-          // у копии стороны зеркальные: предпочтение первого таланта = -v
+          // у копии стороны зеркальные: предпочтение первого качества = -v
           var s1 = Math.sign(first), s2 = Math.sign(-a.v);
           if (s1 === s2) agree++;
           else if (s1 === 0 || s2 === 0) agree += 0.5;
@@ -100,22 +159,27 @@
       else { right++; R.wins++; if (a.v === 2) R.strong++; }
     });
 
+    // сила качеств: байесовская оценка по всем ответам (учитывает, с кем и как часто качество сравнивали)
+    var obs = observations(items, answers, themes);
+    var est = Adaptive.fit(themes.length, obs);
+    themes.forEach(function (t, i) { by[t.id].theta = est.theta[i]; by[t.id].sd = est.sd[i]; });
+
     var ranking = themes.map(function (t) { return by[t.id]; });
     var order = {}; themes.forEach(function (t, i) { order[t.id] = i; });
     ranking.sort(function (x, y) {
-      return (y.score - x.score) || (y.strong - x.strong) || (y.wins - x.wins) || (order[x.id] - order[y.id]);
+      return (y.theta - x.theta) || (y.score - x.score) || (order[x.id] - order[y.id]);
     });
     ranking.forEach(function (r, i) { r.rank = i + 1; });
-    // отмечаем равенство с соседом по всем критериям
+    // соседи, которых по ответам нельзя уверенно развести (вероятность верного порядка меньше 60%)
     ranking.forEach(function (r, i) {
       var nx = ranking[i + 1];
-      r.tiedNext = !!nx && nx.score === r.score && nx.strong === r.strong && nx.wins === r.wins;
+      r.tiedNext = !!nx && Adaptive.normCdf((r.theta - nx.theta) / Math.sqrt(r.sd * r.sd + nx.sd * nx.sd)) < 0.6;
     });
 
     var dom = {};
     ranking.forEach(function (r) {
       dom[r.domain] = dom[r.domain] || { sum: 0, n: 0 };
-      dom[r.domain].sum += r.score; dom[r.domain].n++;
+      dom[r.domain].sum += r.theta; dom[r.domain].n++;
     });
     var domains = {};
     Object.keys(dom).forEach(function (k) { domains[k] = dom[k].sum / dom[k].n; });
@@ -132,8 +196,15 @@
       leftShare: directional ? left / directional : 0.5,
       directional: directional,
       compared: compared,
-      consistency: compared ? agree / compared : null
+      consistency: compared ? agree / compared : null,
+      stability: null
     };
+    // стабильность профиля: оценки по чётным и нечётным ответам, корреляция по 34 качествам, поправка Спирмена — Брауна
+    if (answered >= 30) {
+      var o1 = obs.filter(function (x, i) { return i % 2 === 0; }), o2 = obs.filter(function (x, i) { return i % 2 === 1; });
+      var r = pearson(Adaptive.fit(themes.length, o1).theta, Adaptive.fit(themes.length, o2).theta);
+      if (r !== null && r > -1) v.stability = Math.max(0, 2 * r / (1 + r));
+    }
     var issues = [], level = 'ok';
     // замечания — коды (k) с параметром (p); текст подставляет интерфейс на нужном языке
     function flag(lv, k, p) {
@@ -146,10 +217,19 @@
     else if (v.fastShare > 0.3) flag('warn', 'fastWarn');
     if (v.neutralShare > 0.5) flag('warn', 'neutralWarn');
     if (v.directional >= 20 && (v.leftShare > 0.8 || v.leftShare < 0.2)) flag('warn', 'sideWarn');
-    if (v.compared >= 4 && v.consistency < 0.5) flag('bad', 'consBad', Math.round(v.consistency * 100));
-    else if (v.compared >= 4 && v.consistency < 0.7) flag('warn', 'consWarn', Math.round(v.consistency * 100));
+    if (v.compared >= 4 && v.consistency < CONS_BAD) flag('bad', 'consBad', Math.round(v.consistency * 100));
+    else if (v.compared >= 4 && v.consistency < CONS_WARN) flag('warn', 'consWarn', Math.round(v.consistency * 100));
+    // пороги подобраны симуляцией (см. README)
+    if (v.stability !== null && v.stability < STAB_BAD) flag('bad', 'stabBad', Math.round(v.stability * 100));
+    else if (v.stability !== null && v.stability < STAB_WARN) flag('warn', 'stabWarn', Math.round(v.stability * 100));
     return { ranking: ranking, domains: domains, validity: v, level: level, issues: issues };
   }
 
-  return { SECONDS: SECONDS, ROUNDS: ROUNDS, CONTROLS: CONTROLS, FAST_MS: FAST_MS, buildItems: buildItems, score: score, roundRobin: roundRobin };
+  var STAB_BAD = 0.15, STAB_WARN = 0.3, CONS_BAD = 0.4, CONS_WARN = 0.6;
+
+  return {
+    SECONDS: SECONDS, ROUNDS: ROUNDS, STAGE2: STAGE2, CONTROLS: CONTROLS, FAST_MS: FAST_MS,
+    buildItems: buildItems, nextAdaptiveItem: nextAdaptiveItem, score: score, roundRobin: roundRobin,
+    observations: observations
+  };
 });
